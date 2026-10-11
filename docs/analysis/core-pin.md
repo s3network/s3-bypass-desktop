@@ -21,7 +21,7 @@ committer date 2026-10-09T21:32:29+03:00:
 | ---------- | ------------------------------------------ |
 | Commit SHA | `95c6befbf168057a650e0fd7ae3968ab0da352a3` |
 
-Source repository: `github.com/thevladimirzh/s3-bypass-protocol` — our hardened
+Source repository: `github.com/s3network/s3-bypass-protocol` — our hardened
 fork of `github.com/Fedarisha/Xray-core-fedarisha`, based on upstream tag
 `v26.9.9-1.0.1fed` (commit `03660664`) — the same base the previous pin used,
 so the engine log wording stays identical to it (Go,

@@ -9,7 +9,7 @@
  *      (single source of truth — `expectedShaForAsset` is reused from
  *      `scripts/verify-core-pin.mjs`);
  *   2. downloads
- *      `https://github.com/thevladimirzh/s3-bypass-protocol/releases/download/<tag>/<asset>`;
+ *      `https://github.com/s3network/s3-bypass-protocol/releases/download/<tag>/<asset>`;
  *   3. verifies the digest — a mismatch aborts with exit 1 (MISMATCH);
  *   4. extracts ALL five members (xray, geoip.dat, geosite.dat, LICENSE,
  *      README.md) into `core-bin/<target>/` where <target> is
@@ -73,7 +73,7 @@ async function main() {
       if (expected === null) die(`no pinned SHA-256 for ${asset} in ${PIN_DOC}`);
 
       const url =
-        `https://github.com/thevladimirzh/s3-bypass-protocol/releases/download/` +
+        `https://github.com/s3network/s3-bypass-protocol/releases/download/` +
         `${tag}/${asset}`;
       process.stdout.write(`prepare:core → ${asset} (${target})\n`);
       const response = await fetch(url);

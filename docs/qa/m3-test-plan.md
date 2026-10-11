@@ -439,7 +439,7 @@ ${productName}-${version}-${arch}.dmg` + truthful deb/rpm filenames
   all three legs**; `-x64.dmg` present, and all five installers
   verified OK against their per-leg CI `SHA256SUMS.txt`.
 - Release published (owner-approved body, marker scan 0 →
-  https://github.com/thevladimirzh/s3-bypass-desktop/releases/tag/v0.1.0-beta.1)
+  https://github.com/s3network/s3-bypass-desktop/releases/tag/v0.1.0-beta.1)
   — **prerelease** ✓, 5 installers + `SHA256SUMS.txt` (~682 MB).
   GitHub normalizes spaces in asset names to dots, so the attached
   manifest lists `S3.Bypass.Desktop-…` names (re-verified locally:
@@ -524,7 +524,7 @@ m2-test-plan §11 (DV-63 last).)_
   cannot skip a missing object, so one lost file wedged the session: a
   6×50 MB burst froze all traffic for ~4 min while the UI kept showing
   "Connected" (owner machine, 2026-10-09).
-- **What**: core repinned to `thevladimirzh/s3-bypass-protocol`
+- **What**: core repinned to `s3network/s3-bypass-protocol`
   `v0.1.0-fork.3` (based on upstream `26.9.9-1.0.1fed`, so the engine
   version and log wording are unchanged). `uploadUntilDelivered` retries
   a file until the backend takes it; the client additionally fails over
