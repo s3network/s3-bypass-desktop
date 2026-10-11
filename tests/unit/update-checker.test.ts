@@ -141,9 +141,59 @@ describe('update-checker — version comparison', () => {
   });
 
   it('update.compare.unparseableComponentCountsAsZeroNotNewer', async () => {
-    // A malformed tag must never make an update look available.
+    // A malformed tag must never make an update look available. Asserted as
+    // the invariant rather than as an exact number: once prereleases sort
+    // below their release, a tag like "total-garbage" lands BELOW 0.0.0
+    // instead of level with it. Both satisfy the rule that matters — only the
+    // invariant was ever the point, and pinning "0" would have pinned an
+    // implementation detail that changed for a reason.
+    const { compareVersions, isNewer } = await loadUpdateChecker();
+    for (const junk of ['total-garbage', 'garbage-1.0.0', '-1.0.0', 'x.y.z']) {
+      expect(isNewer(junk, '0.0.0'), `${junk} must not look newer than 0.0.0`).toBe(false);
+      expect(isNewer(junk, '0.1.0'), `${junk} must not look newer than 0.1.0`).toBe(false);
+    }
+    expect(compareVersions('total-garbage', '0.0.0')).toBeLessThanOrEqual(0);
+  });
+
+  // The project moved off `-beta` version names, which made these two rules
+  // reachable for the first time. Both were wrong in the direction that hurts
+  // most: a build that IS behind being reported as current.
+  it('update.compare.aReleaseOutranksItsOwnPrerelease', async () => {
+    // 0.1.0-beta.3 leads to 0.1.0. A comparator that reads "0.1.0" as three
+    // components and "0.1.0-beta.3" as five sees the fourth component 3 > 0
+    // and concludes the release is OLDER — so the user on beta.3 is never
+    // offered the release that replaced it, and the updater reports a stale
+    // build as current with nothing on screen to say why.
     const { compareVersions } = await loadUpdateChecker();
-    expect(compareVersions('total-garbage', '0.0.0')).toBe(0);
+    expect(compareVersions('0.1.0', '0.1.0-beta.3')).toBeGreaterThan(0);
+    expect(compareVersions('0.1.0-beta.3', '0.1.0')).toBeLessThan(0);
+  });
+
+  it('update.compare.isNewerSeesThePrereleaseTransition', async () => {
+    // The exact pair a user on the current build will be in when the first
+    // non-beta release ships.
+    const { isNewer } = await loadUpdateChecker();
+    expect(isNewer('0.1.0', '0.1.0-beta.3')).toBe(true);
+    expect(isNewer('0.1.0-beta.3', '0.1.0')).toBe(false);
+    expect(isNewer('0.1.0-beta.3', '0.1.0-beta.3')).toBe(false);
+  });
+
+  it('update.compare.prereleaseIdentifiersCompareSemverWay', async () => {
+    const { compareVersions } = await loadUpdateChecker();
+    // More fields wins when the shared prefix is equal (1.0.0-alpha.1 > 1.0.0-alpha).
+    expect(compareVersions('1.0.0-alpha.1', '1.0.0-alpha')).toBeGreaterThan(0);
+    // A numeric identifier ranks below an alphanumeric one.
+    expect(compareVersions('1.0.0-alpha', '1.0.0-1')).toBeGreaterThan(0);
+    // Numeric identifiers still compare numerically, not as text.
+    expect(compareVersions('0.1.0-beta.10', '0.1.0-beta.9')).toBeGreaterThan(0);
+  });
+
+  it('update.compare.plainVersionsAreUnaffectedByThePrereleaseRules', async () => {
+    // The everyday path must not have moved.
+    const { compareVersions } = await loadUpdateChecker();
+    expect(compareVersions('0.2.0', '0.1.9')).toBeGreaterThan(0);
+    expect(compareVersions('1.1.1', '1.1.1')).toBe(0);
+    expect(compareVersions('v1.2.0', 'v1.2.0')).toBe(0);
   });
 });
 

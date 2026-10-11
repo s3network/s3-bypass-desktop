@@ -108,26 +108,80 @@ const MAC_DMG_SUFFIX: Record<string, string> = {
 const LINUX_ASSET_SUFFIX = '.AppImage';
 
 /**
- * Compares dotted version strings component by component, numerically.
+ * Compares dotted version strings, semver rules included.
  *
  * String comparison gets this wrong at the exact moment it matters: "1.1.9" >
  * "1.1.10" lexicographically, so the tenth release after the ninth would
  * never be offered and a stale build would look current forever. Every
- * component is parsed as a number and any non-numeric tail is dropped, which
- * is what makes `0.1.0-beta.10` sort above `0.1.0-beta.9`.
+ * component is therefore parsed as a number and any non-numeric tail is
+ * dropped, which is what makes `0.1.0-beta.10` sort above `0.1.0-beta.9`.
+ *
+ * The `-` split matters just as much. `0.1.0-beta.3` leads to `0.1.0`, and
+ * the release must sort ABOVE it — but read as plain dotted numbers the
+ * prerelease looks like it has two extra components, so `0.1.0` comes out
+ * older. That silently strands everyone on a prerelease when the release
+ * they were waiting for ships, and the updater reports a stale build as
+ * current with nothing on screen to say why.
  */
 export function compareVersions(a: string, b: string): number {
-  // Strip a leading "v" on BOTH sides. parseReleases already removes it from
-  // the tag, but without this a stray "v" becomes a component that parses as
-  // 0 — silently downgrading "v1.2.0" to 0.2.0 and hiding an update behind a
-  // wrong answer.
-  const left = a.replace(/^v/, '').split('.');
-  const right = b.replace(/^v/, '').split('.');
-  const width = Math.max(left.length, right.length);
+  const left = splitVersion(a);
+  const right = splitVersion(b);
+
+  const width = Math.max(left.release.length, right.release.length);
   for (let index = 0; index < width; index += 1) {
-    const l = digitsOf(left[index]);
-    const r = digitsOf(right[index]);
+    const l = digitsOf(left.release[index]);
+    const r = digitsOf(right.release[index]);
     if (l !== r) return l < r ? -1 : 1;
+  }
+
+  // Equal release parts: no prerelease outranks one.
+  if (left.prerelease.length === 0 && right.prerelease.length > 0) return 1;
+  if (right.prerelease.length === 0 && left.prerelease.length > 0) return -1;
+  return comparePrerelease(left.prerelease, right.prerelease);
+}
+
+/** `v0.1.0-beta.3` → release `[0,1,0]`, prerelease `['beta','3']`. */
+function splitVersion(version: string): { release: string[]; prerelease: string[] } {
+  // Strip a leading "v" first. Without this a stray "v" becomes a component
+  // that parses as 0 — silently downgrading "v1.2.0" to 0.2.0 and hiding an
+  // update behind a wrong answer.
+  const clean = version.replace(/^v/, '');
+  const dash = clean.indexOf('-');
+  if (dash === -1) {
+    return { release: clean.split('.'), prerelease: [] };
+  }
+  return {
+    release: clean.slice(0, dash).split('.'),
+    prerelease: clean
+      .slice(dash + 1)
+      .split('.')
+      .filter((part) => part !== ''),
+  };
+}
+
+/** Semver §11.4 — identifier by identifier, numeric below alphanumeric. */
+function comparePrerelease(a: readonly string[], b: readonly string[]): number {
+  const width = Math.max(a.length, b.length);
+  for (let index = 0; index < width; index += 1) {
+    const l = a[index];
+    const r = b[index];
+    // Fewer fields wins when every shared field is equal.
+    if (l === undefined) return -1;
+    if (r === undefined) return 1;
+    if (l === r) continue;
+
+    const lNumeric = /^\d+$/.test(l);
+    const rNumeric = /^\d+$/.test(r);
+    // Numeric identifiers compare numerically; alphanumeric compare as text.
+    if (lNumeric && rNumeric) {
+      const ln = Number.parseInt(l, 10);
+      const rn = Number.parseInt(r, 10);
+      if (ln !== rn) return ln < rn ? -1 : 1;
+      continue;
+    }
+    // A numeric identifier always has lower precedence than alphanumeric.
+    if (lNumeric !== rNumeric) return lNumeric ? -1 : 1;
+    return l < r ? -1 : 1;
   }
   return 0;
 }

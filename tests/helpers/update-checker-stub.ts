@@ -59,6 +59,7 @@ export interface CheckForUpdateOptions {
 export interface UpdateCheckerModule {
   RELEASES_URL: string;
   compareVersions(a: string, b: string): number;
+  isNewer(remote: string, local: string): boolean;
   pickAsset(
     assets: readonly ReleaseAsset[],
     platform: PlatformName,
