@@ -106,8 +106,6 @@ import { DEFAULT_SOCKS_PORT } from '../../src/shared/constants';
 import type { CoreState, StatusSnapshot } from '../../src/shared/status-machine';
 import {
   acquirePortLock,
-  portBusySkipMessage,
-  portHeldExternally,
   cleanupScratches,
   type CoreLogLine,
   type CoreSupervisor,
@@ -123,6 +121,8 @@ import {
   occupyPortPath,
   PORT_LOCK_HOOK_TIMEOUT_MS,
   PORT_LOCK_TIMEOUT_MS,
+  portBusySkipMessage,
+  portHeldExternally,
   readInvocations,
   readSignals,
   reapRecordedChildren,
