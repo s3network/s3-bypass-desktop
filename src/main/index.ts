@@ -1102,18 +1102,15 @@ ipcMain.handle('logs:clear', (event: IpcMainInvokeEvent): { ok: true } => {
 // discarded with `void`, so the rejection vanished and the button looked
 // dead. Main's clipboard has no such precondition, and the renderer learns
 // whether the write happened instead of assuming it.
-ipcMain.handle(
-  'logs:copy',
-  (event: IpcMainInvokeEvent, text: string): { ok: boolean } => {
-    assertTrustedSender(event);
-    try {
-      clipboard.writeText(typeof text === 'string' ? text : '');
-      return { ok: true };
-    } catch {
-      return { ok: false };
-    }
-  },
-);
+ipcMain.handle('logs:copy', (event: IpcMainInvokeEvent, text: string): { ok: boolean } => {
+  assertTrustedSender(event);
+  try {
+    clipboard.writeText(typeof text === 'string' ? text : '');
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+});
 
 // M1-27b (D-01, issue #14): the REAL state report — `supported` answers the
 // pure platform rule (PR-01: platform + $XDG_CURRENT_DESKTOP PASSED IN),

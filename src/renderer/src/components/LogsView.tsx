@@ -98,7 +98,11 @@ export default function LogsView() {
       <h2>{t('logs.title')}</h2>
       <div className="log-actions">
         <button type="button" onClick={copyLogs}>
-          {copyState === 'copied' ? t('logs.copied') : copyState === 'failed' ? t('logs.copyFailed') : t('logs.copy')}
+          {copyState === 'copied'
+            ? t('logs.copied')
+            : copyState === 'failed'
+              ? t('logs.copyFailed')
+              : t('logs.copy')}
         </button>
         <button type="button" onClick={clearLogs}>
           {t('logs.clear')}

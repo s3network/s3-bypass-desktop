@@ -73,8 +73,7 @@ async function main() {
       if (expected === null) die(`no pinned SHA-256 for ${asset} in ${PIN_DOC}`);
 
       const url =
-        `https://github.com/s3network/s3-bypass-protocol/releases/download/` +
-        `${tag}/${asset}`;
+        `https://github.com/s3network/s3-bypass-protocol/releases/download/` + `${tag}/${asset}`;
       process.stdout.write(`prepare:core → ${asset} (${target})\n`);
       const response = await fetch(url);
       if (!response.ok) die(`download failed for ${asset}: HTTP ${response.status}`);
