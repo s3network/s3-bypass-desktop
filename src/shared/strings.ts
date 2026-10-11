@@ -53,6 +53,22 @@ const EN = {
   'logs.clear': 'Clear',
   // The product tagline (renderer copy, unpinned by design).
   'app.tagline': 'Import a config — press Start — the internet works.',
+  // The update surface. The button exists ONLY when a newer version is real —
+  // an always-visible "Update" that mostly says "you're up to date" trains
+  // people to click through the one time it matters.
+  'update.title': 'Updates',
+  'update.available': 'Version {version} is available',
+  'update.download': 'Download',
+  'update.viewRelease': 'View release',
+  'update.upToDate': 'You are on the latest version ({version}).',
+  'update.checkFailed': 'Could not check for updates.',
+  'update.check': 'Check for updates',
+  // Why the app hands over a file instead of installing it. Said once, on the
+  // button's own screen — an unexplained download link reads like a scam.
+  'update.unsignedNote':
+    'The macOS build is not code-signed, so it cannot replace itself. Download and open the file to update.',
+  'update.openFailed': 'Could not open the download.',
+  'update.assetSize': '{name} — {mb} MB',
 } as const;
 
 /** Every key of the EN map — the seam's public contract. */

@@ -36,6 +36,8 @@ import type {
   ProfileView,
   ProxyState,
   StatusSnapshot,
+  UpdateCheckResult,
+  UpdateOpenResult,
 } from '../shared/ipc';
 import { type AppError, type CoreState } from '../shared/status-machine';
 import { resolveCoreBinaryPath } from './core-binary-path';
@@ -58,6 +60,7 @@ import {
   type SystemProxyContext,
   type SystemProxySnapshot,
 } from './system-proxy';
+import { checkForUpdate } from './update-checker';
 import { buildTrayMenu, createWindowLifecycle, type TrayMenuAction } from './window-lifecycle';
 
 /** `status:changed` push channel (§4.2, FR-63) — a contract literal, never a free string. */
@@ -1106,6 +1109,52 @@ ipcMain.handle('logs:copy', (event: IpcMainInvokeEvent, text: string): { ok: boo
   assertTrustedSender(event);
   try {
     clipboard.writeText(typeof text === 'string' ? text : '');
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+});
+
+// ── Update surface ───────────────────────────────────────────────────────────
+// `update:check` is the only network call the update surface makes, and it is
+// deliberately silent about its own failures (src/main/update-checker.ts): the
+// app is a VPN client, so the lookup fails exactly when the tunnel is down and
+// must never become a dialog the user has to dismiss at that moment.
+//
+// The check runs once at startup and stays out of the way afterwards. The
+// button only ever appears when a genuinely newer version exists — an
+// always-visible "Update" that usually says "you are current" is how people
+// learn to click past the one time it matters.
+let lastKnownUpdate: UpdateCheckResult | null = null;
+
+ipcMain.handle('update:check', (event: IpcMainInvokeEvent): Promise<UpdateCheckResult> => {
+  assertTrustedSender(event);
+  return checkForUpdate({
+    current: app.getVersion(),
+    platform: process.platform,
+    arch: process.arch,
+  }).then((result) => {
+    lastKnownUpdate = result;
+    return result;
+  });
+});
+
+// The renderer names no URL here. Main opens the one it published in the last
+// `update:check` answer, so a compromised renderer cannot turn this window
+// into a launcher for arbitrary addresses — the same reasoning as the
+// `setWindowOpenHandler` allowlist above, applied at the channel instead.
+//
+// The outcome is awaited and reported rather than assumed: an empty `.catch`
+// would make a refused open look exactly like a successful one, which is the
+// B-13 swallow this file already had to grow a surfacer for on quit.
+ipcMain.handle('update:open', async (event: IpcMainInvokeEvent): Promise<UpdateOpenResult> => {
+  assertTrustedSender(event);
+  const url = lastKnownUpdate?.url ?? lastKnownUpdate?.pageUrl ?? null;
+  if (url === null || !url.startsWith('https://')) {
+    return { ok: false };
+  }
+  try {
+    await shell.openExternal(url);
     return { ok: true };
   } catch {
     return { ok: false };

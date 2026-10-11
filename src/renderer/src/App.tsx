@@ -12,6 +12,7 @@ import type {
 import { STATUS_LABELS } from '../../shared/status-labels';
 import { t } from '../../shared/strings';
 import LogsView from './components/LogsView';
+import UpdateBanner from './components/UpdateBanner';
 
 /**
  * FR-41 visible-state wording (FR-24 / AC-03.1: a TEXT label, never
@@ -377,6 +378,9 @@ export default function App() {
           </div>
         )}
       </section>
+      {/* The update surface: the download control appears only when a newer
+          build really exists (src/renderer/src/components/UpdateBanner.tsx). */}
+      <UpdateBanner />
       {/* M1-19 (FR-45/FR-49): the logs view — main-redacted lines, copy/clear. */}
       <LogsView />
       <footer>S3 Bypass Desktop</footer>

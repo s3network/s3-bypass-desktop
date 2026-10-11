@@ -140,6 +140,21 @@ body {
   font-size: 1rem;
 }
 
+.update-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.update-actions button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #2a3541;
+  border-radius: 6px;
+  background: #1f2a35;
+  color: #e7edf3;
+  font: inherit;
+  cursor: pointer;
+}
+
 .log-actions {
   display: flex;
   gap: 0.5rem;

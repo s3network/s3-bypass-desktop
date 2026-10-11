@@ -21,8 +21,8 @@
  *      export const IPC_INVOKE_CHANNELS = [
  *        'app:ping', 'profile:import-dialog', 'profile:get', 'profile:remove',
  *        'core:start', 'core:stop', 'status:get', 'logs:get', 'logs:clear',
- *        'proxy:get', 'proxy:set',
- *      ] as const;                 // R → M, kind "invoke"  (11 rows of §4.2)
+ *        'proxy:get', 'proxy:set', 'update:check', 'update:open',
+ *      ] as const;                 // R → M, kind "invoke"  (13 rows of §4.2)
  *      export const IPC_PUSH_CHANNELS = [
  *        'status:changed', 'log:line',
  *      ] as const;                 // M → R, kind "send"    (2 rows of §4.2)
@@ -217,6 +217,17 @@ const CONTRACT_TABLE: readonly ChannelSpec[] = [
     kind: 'invoke',
     payloadOut: '{ ok:true } | { ok:false, error:AppError } (in: { enabled: boolean })',
   },
+  // The update surface. `update:open` takes NO payload: the renderer names no
+  // URL, main opens the one it published in its own last `update:check`, so a
+  // compromised renderer cannot make the app launch arbitrary addresses.
+  {
+    channel: 'update:check',
+    direction: 'R→M',
+    kind: 'invoke',
+    payloadOut:
+      'UpdateCheckResult { current, latest, available, url, assetName, sizeBytes, pageUrl, prerelease }',
+  },
+  { channel: 'update:open', direction: 'R→M', kind: 'invoke', payloadOut: '{ ok: boolean }' },
 ];
 
 const CONTRACT_INVOKE: string[] = CONTRACT_TABLE.filter((spec) => spec.kind === 'invoke').map(
@@ -504,7 +515,7 @@ describe('channel declarations in src/shared/ipc.ts (FR-62) — TC-IPC-03', () =
     // add; absence fails with the contract message, never silently.
     const declaredInvoke = requireDeclared(
       IPC_INVOKE_CHANNELS,
-      'IPC_INVOKE_CHANNELS — the R→M invoke allowlist (§4.2, 11 rows)',
+      'IPC_INVOKE_CHANNELS — the R→M invoke allowlist (§4.2, 13 rows)',
     );
     const declaredPush = requireDeclared(
       IPC_PUSH_CHANNELS,
@@ -550,7 +561,7 @@ describe('channel declarations in src/shared/ipc.ts (FR-62) — TC-IPC-03', () =
         'IPC_PUSH_CHANNELS — the namespaced channel literal union',
       ) as readonly string[]),
     ];
-    const NAMESPACES = ['app', 'profile', 'core', 'status', 'logs', 'log', 'proxy'];
+    const NAMESPACES = ['app', 'profile', 'core', 'status', 'logs', 'log', 'proxy', 'update'];
     expect(
       declared.filter((channel) => {
         const [namespace, action] = channel.split(':');
@@ -579,6 +590,8 @@ describe('channel declarations in src/shared/ipc.ts (FR-62) — TC-IPC-03', () =
       | 'logs:copy'
       | 'proxy:get'
       | 'proxy:set'
+      | 'update:check'
+      | 'update:open'
     >();
     expectTypeOf<IpcPushChannel>().toEqualTypeOf<'status:changed' | 'log:line'>();
     expectTypeOf<IpcChannel>().toEqualTypeOf<
@@ -594,6 +607,8 @@ describe('channel declarations in src/shared/ipc.ts (FR-62) — TC-IPC-03', () =
       | 'logs:copy'
       | 'proxy:get'
       | 'proxy:set'
+      | 'update:check'
+      | 'update:open'
       | 'status:changed'
       | 'log:line'
     >();

@@ -14,6 +14,8 @@ import type {
   ProxyState,
   S3BypassApi,
   StatusSnapshot,
+  UpdateCheckResult,
+  UpdateOpenResult,
 } from '../shared/ipc';
 
 /**
@@ -58,6 +60,11 @@ const api: S3BypassApi = {
   copyLogs: (text: string) => invoke<{ ok: boolean }>('logs:copy', text),
   getProxy: () => invoke<ProxyState>('proxy:get'),
   setProxy: (request) => invoke<OperationResult>('proxy:set', request),
+  checkForUpdate: () => invoke<UpdateCheckResult>('update:check'),
+  // No URL argument crosses this boundary on purpose: main opens the one it
+  // published in the last `update:check`, so the renderer cannot ask the app
+  // to launch an arbitrary address.
+  openUpdate: () => invoke<UpdateOpenResult>('update:open'),
   onStatusChanged: (listener) => subscribe<StatusSnapshot>('status:changed', listener),
   // S5-7 (issue #13): main batches `log:line` payloads (a send may carry one
   // `LogLine` or a `LogLine[]` of accumulated lines) — the renderer-facing

@@ -33,6 +33,8 @@ export const IPC_INVOKE_CHANNELS = [
   'logs:copy',
   'proxy:get',
   'proxy:set',
+  'update:check',
+  'update:open',
 ] as const;
 
 /** M → R push channels (data-flows §4.2, FR-63): pushed via `webContents.send`, never polled. */
@@ -140,6 +142,43 @@ export interface ProxyToggleRequest {
 }
 
 /**
+ * `update:check` result (§4.2): what the release list says about this build.
+ *
+ * Shaped so "could not determine" is a value, not an exception — the app is a
+ * VPN client and its own lookup fails exactly when the tunnel is down, which
+ * must never surface as a failure the user has to dismiss. `latest: null` with
+ * `available: false` is exactly that answer.
+ *
+ * `url` is null when a newer version exists but carries no artifact this
+ * machine can install; `pageUrl` is then the honest fallback. Both are absent
+ * together when nothing was found at all.
+ */
+export interface UpdateCheckResult {
+  /** The running build's version, without a leading `v`. */
+  current: string;
+  /** Newest published version, or null when it could not be determined. */
+  latest: string | null;
+  /** True only when `latest` is strictly newer than `current`. */
+  available: boolean;
+  url: string | null;
+  assetName: string | null;
+  sizeBytes: number | null;
+  pageUrl: string | null;
+  prerelease: boolean;
+}
+
+/**
+ * `update:open` result (§4.2).
+ *
+ * The renderer names no URL. Main remembers the one it published in the last
+ * `update:check` answer and opens exactly that, so a compromised renderer
+ * cannot turn the app into a launcher for arbitrary addresses.
+ */
+export interface UpdateOpenResult {
+  ok: boolean;
+}
+
+/**
  * The renderer-facing bridge the preload exposes as `window.s3Bypass`
  * (FR-61): exactly one member per §4.2 channel in its documented direction,
  * plus the static `versions` preload constant (a field, not a channel).
@@ -164,6 +203,8 @@ export interface S3BypassApi {
   copyLogs(text: string): Promise<{ ok: boolean }>;
   getProxy(): Promise<ProxyState>;
   setProxy(request: ProxyToggleRequest): Promise<OperationResult>;
+  checkForUpdate(): Promise<UpdateCheckResult>;
+  openUpdate(): Promise<UpdateOpenResult>;
   onStatusChanged(listener: (snapshot: StatusSnapshot) => void): () => void;
   onLogLine(listener: (line: LogLine) => void): () => void;
   versions: AppVersions;
