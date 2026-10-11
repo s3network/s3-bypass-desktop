@@ -78,6 +78,8 @@ import type { OperationResult } from '../../src/shared/ipc';
 import type { StatusSnapshot } from '../../src/shared/status-machine';
 import {
   acquirePortLock,
+  portBusySkipMessage,
+  portHeldExternally,
   cleanupScratches,
   type CoreLogLine,
   type CoreSupervisor,
@@ -241,147 +243,174 @@ function firstPid(rig: Rig): number {
   return invocation.pid;
 }
 
-describe('supervisor — materialization defense-in-depth (S5-1, BR-V-09 fix item 2)', () => {
-  it('supervisor.materialize.extraNonLoopbackInboundNeverReachesT', async () => {
-    // TC-02-19 / S5-1: the stored profile below is what the validator would
-    // hand over if the extra-entry gap (TC-01-37..39) ever reappeared. EITHER
-    // documented fix arm must hold: start refused with a documented E-VAL-*
-    // code, or T materialized loopback-only (reject, strip, or pin).
-    const rig = await createRig({
-      config: readConfigFixture('extra-inbound-0-0-0-0.json'),
-    });
-    await waitForPortFree(
-      DEFAULT_SOCKS_PORT,
-      5000,
-      'TC-02-19: 127.0.0.1:10808 free before start()',
-    );
-    const result = await rig.supervisor.start();
+/**
+ * Skip these suites when 127.0.0.1:10808 is already taken.
+ *
+ * mergeLoopbackInbound writes DEFAULT_SOCKS_PORT into the materialized
+ * profile whatever the profile itself said, so a suite cannot choose a port
+ * of its own. With the application open — the normal state while working on
+ * it — every spawn-path case fails for a reason that has nothing to do with
+ * the code under test. Two dozen red tests read as a defect; one skip that
+ * names its cause does not.
+ */
+const PORT_TAKEN = await portHeldExternally(DEFAULT_SOCKS_PORT);
+if (PORT_TAKEN) {
+  // vitest's SuiteOptions carries no skip reason, so it is stated once
+  // here instead: the skips below are otherwise unexplained.
+  console.warn(portBusySkipMessage(DEFAULT_SOCKS_PORT));
+}
 
-    if (!result.ok) {
+describe.skipIf(PORT_TAKEN)(
+  'supervisor — materialization defense-in-depth (S5-1, BR-V-09 fix item 2)',
+  () => {
+    it('supervisor.materialize.extraNonLoopbackInboundNeverReachesT', async () => {
+      // TC-02-19 / S5-1: the stored profile below is what the validator would
+      // hand over if the extra-entry gap (TC-01-37..39) ever reappeared. EITHER
+      // documented fix arm must hold: start refused with a documented E-VAL-*
+      // code, or T materialized loopback-only (reject, strip, or pin).
+      const rig = await createRig({
+        config: readConfigFixture('extra-inbound-0-0-0-0.json'),
+      });
+      await waitForPortFree(
+        DEFAULT_SOCKS_PORT,
+        5000,
+        'TC-02-19: 127.0.0.1:10808 free before start()',
+      );
+      const result = await rig.supervisor.start();
+
+      if (!result.ok) {
+        expect(
+          result.error.code,
+          'TC-02-19/S5-1 fix arm 1: start refused with a documented errors.md E-VAL-* code ' +
+            `(BR-V-09 at materialization); got ${result.error.code}`,
+        ).toMatch(/^E-VAL-\d{3}$/);
+        return;
+      }
+
+      const tPath = materializedConfigPath(rig);
+      const materialized = JSON.parse(readFileSync(tPath, 'utf8')) as Record<string, unknown>;
+      const inbounds = Array.isArray(materialized['inbounds'])
+        ? (materialized['inbounds'] as Array<Record<string, unknown>>)
+        : [];
+      const offending = inbounds.filter(
+        (entry) => !LOOPBACK_ADDRESSES.includes(String(entry['listen'])),
+      );
       expect(
-        result.error.code,
-        'TC-02-19/S5-1 fix arm 1: start refused with a documented errors.md E-VAL-* code ' +
-          `(BR-V-09 at materialization); got ${result.error.code}`,
-      ).toMatch(/^E-VAL-\d{3}$/);
-      return;
-    }
+        offending,
+        'TC-02-19/S5-1 fix arm 2: the materialized T must be loopback-only — every inbound ' +
+          'entry (not just the first socks one) must listen on 127.0.0.1/::1, be stripped, or ' +
+          `start must have been refused; found ${JSON.stringify(offending)}`,
+      ).toEqual([]);
 
-    const tPath = materializedConfigPath(rig);
-    const materialized = JSON.parse(readFileSync(tPath, 'utf8')) as Record<string, unknown>;
-    const inbounds = Array.isArray(materialized['inbounds'])
-      ? (materialized['inbounds'] as Array<Record<string, unknown>>)
-      : [];
-    const offending = inbounds.filter(
-      (entry) => !LOOPBACK_ADDRESSES.includes(String(entry['listen'])),
-    );
-    expect(
-      offending,
-      'TC-02-19/S5-1 fix arm 2: the materialized T must be loopback-only — every inbound ' +
-        'entry (not just the first socks one) must listen on 127.0.0.1/::1, be stripped, or ' +
-        `start must have been refused; found ${JSON.stringify(offending)}`,
-    ).toEqual([]);
+      await rig.supervisor.stop();
+    }, 15_000);
+  },
+);
 
-    await rig.supervisor.stop();
-  }, 15_000);
-});
+describe.skipIf(PORT_TAKEN)(
+  'supervisor — redaction before lastError (S5-2, errors.md "last redacted core line")',
+  () => {
+    it('supervisor.crash.lastCoreLineRedactedBeforeLastError', async () => {
+      // TC-07-19 / S5-2: fake-core --mode=fail-canary dies with a benign first
+      // line and a LAST line quoting <T> + the access-key canary. The fixture
+      // sanity first (the canary really reached the RAW sink — the sink is raw
+      // by contract, M1-15), then the pin: the embedded line is REDACTED.
+      const rig = await createRig({ mode: 'fail-canary' });
+      const result = await rig.supervisor.start();
 
-describe('supervisor — redaction before lastError (S5-2, errors.md "last redacted core line")', () => {
-  it('supervisor.crash.lastCoreLineRedactedBeforeLastError', async () => {
-    // TC-07-19 / S5-2: fake-core --mode=fail-canary dies with a benign first
-    // line and a LAST line quoting <T> + the access-key canary. The fixture
-    // sanity first (the canary really reached the RAW sink — the sink is raw
-    // by contract, M1-15), then the pin: the embedded line is REDACTED.
-    const rig = await createRig({ mode: 'fail-canary' });
-    const result = await rig.supervisor.start();
+      await waitFor(
+        () => rig.sink.some((line) => line.text.includes(ACCESS_KEY_CANARY)),
+        5000,
+        'the canary stderr line to reach the raw log sink (fixture sanity)',
+      );
+      expect(result.ok, 'TC-07-19/FR-17: a nonzero child exit settles start() as a failure').toBe(
+        false,
+      );
+      if (result.ok) throw new Error('unreachable: assertion above failed');
+      const error = result.error;
 
-    await waitFor(
-      () => rig.sink.some((line) => line.text.includes(ACCESS_KEY_CANARY)),
-      5000,
-      'the canary stderr line to reach the raw log sink (fixture sanity)',
-    );
-    expect(result.ok, 'TC-07-19/FR-17: a nonzero child exit settles start() as a failure').toBe(
-      false,
-    );
-    if (result.ok) throw new Error('unreachable: assertion above failed');
-    const error = result.error;
+      expect(error.code, 'errors.md §3 crash code unchanged (TC-02-06)').toBe('E-CORE-001');
+      expect(
+        error.cause,
+        'TC-07-19/FR-17: the cause keeps naming the actual exit code 3 (TC-02-06 contract)',
+      ).toMatch(/exited with code 3\b/);
+      expect(
+        error.cause,
+        'S5-2/TC-07-19: the embedded last core line must be REDACTED before it enters ' +
+          'lastError — errors.md/data-flows require the "last redacted core line"; a raw ' +
+          'secret-bearing line in the cause is the documented bypass (issue #8). ' +
+          'issue #24/DV-63 RED-fixup: whole-line [REDACTED] or a class marker both count',
+      ).toMatch(/\[REDACTED(\]|:)/);
 
-    expect(error.code, 'errors.md §3 crash code unchanged (TC-02-06)').toBe('E-CORE-001');
-    expect(
-      error.cause,
-      'TC-07-19/FR-17: the cause keeps naming the actual exit code 3 (TC-02-06 contract)',
-    ).toMatch(/exited with code 3\b/);
-    expect(
-      error.cause,
-      'S5-2/TC-07-19: the embedded last core line must be REDACTED before it enters ' +
-        'lastError — errors.md/data-flows require the "last redacted core line"; a raw ' +
-        'secret-bearing line in the cause is the documented bypass (issue #8). ' +
-        'issue #24/DV-63 RED-fixup: whole-line [REDACTED] or a class marker both count',
-    ).toMatch(/\[REDACTED(\]|:)/);
+      // Both IPC channels that carry lastError (OperationResult + every emitted
+      // StatusSnapshot) must be free of the canary and of T's path.
+      const tPath = materializedConfigPath(rig);
+      const surfaced = [tripleText(error)];
+      for (const snapshot of rig.snapshots) {
+        if (snapshot.lastError !== null) surfaced.push(tripleText(snapshot.lastError));
+      }
+      expect(
+        surfaced.some((text) => text.includes(ACCESS_KEY_CANARY)),
+        'NFR-2/§8.4: the access-key canary may never surface in the OperationResult or any ' +
+          'StatusSnapshot.lastError (S5-2)',
+      ).toBe(false);
+      expect(
+        surfaced.some((text) => text.includes(tPath)),
+        'FR-23/§4.3 denylist: the materialized config path T may never surface in lastError ' +
+          '(S5-2)',
+      ).toBe(false);
+    }, 15_000);
+  },
+);
 
-    // Both IPC channels that carry lastError (OperationResult + every emitted
-    // StatusSnapshot) must be free of the canary and of T's path.
-    const tPath = materializedConfigPath(rig);
-    const surfaced = [tripleText(error)];
-    for (const snapshot of rig.snapshots) {
-      if (snapshot.lastError !== null) surfaced.push(tripleText(snapshot.lastError));
-    }
-    expect(
-      surfaced.some((text) => text.includes(ACCESS_KEY_CANARY)),
-      'NFR-2/§8.4: the access-key canary may never surface in the OperationResult or any ' +
-        'StatusSnapshot.lastError (S5-2)',
-    ).toBe(false);
-    expect(
-      surfaced.some((text) => text.includes(tPath)),
-      'FR-23/§4.3 denylist: the materialized config path T may never surface in lastError ' +
-        '(S5-2)',
-    ).toBe(false);
-  }, 15_000);
-});
+describe.skipIf(PORT_TAKEN)(
+  'supervisor — forceStop, kill from any live state (S5-3, FR-19/FR-23)',
+  () => {
+    it('supervisor.forceStop.killsRunningChildDeletesTNoChildNoop', async () => {
+      // TC-05-20 / S5-3 contract C: forceStop() exists, kills a live child
+      // (SIGTERM → SIGKILL escalation), awaits the exit, deletes T, resolves
+      // {ok:true}; with no child it is an idempotent {ok:true} no-op. The
+      // `starting`/`stopping` force-stop cases are pinned at the wiring and
+      // index levels (TC-05-21/22) — no state sequence is pinned here.
+      const rig = await createRig();
+      expect(
+        typeof rig.supervisor.forceStop,
+        'S5-3/TC-05-20 (M1-26): src/main/core-supervisor.ts must expose forceStop() on the ' +
+          'supervisor — the quit teardown needs a kill-from-any-state route (issue #9)',
+      ).toBe('function');
 
-describe('supervisor — forceStop, kill from any live state (S5-3, FR-19/FR-23)', () => {
-  it('supervisor.forceStop.killsRunningChildDeletesTNoChildNoop', async () => {
-    // TC-05-20 / S5-3 contract C: forceStop() exists, kills a live child
-    // (SIGTERM → SIGKILL escalation), awaits the exit, deletes T, resolves
-    // {ok:true}; with no child it is an idempotent {ok:true} no-op. The
-    // `starting`/`stopping` force-stop cases are pinned at the wiring and
-    // index levels (TC-05-21/22) — no state sequence is pinned here.
-    const rig = await createRig();
-    expect(
-      typeof rig.supervisor.forceStop,
-      'S5-3/TC-05-20 (M1-26): src/main/core-supervisor.ts must expose forceStop() on the ' +
-        'supervisor — the quit teardown needs a kill-from-any-state route (issue #9)',
-    ).toBe('function');
+      await waitForPortFree(
+        DEFAULT_SOCKS_PORT,
+        5000,
+        'TC-05-20: 127.0.0.1:10808 free before start()',
+      );
+      const startResult = await rig.supervisor.start();
+      expect(
+        startResult.ok,
+        `TC-05-20 precondition: start failed — ${JSON.stringify(startResult)}`,
+      ).toBe(true);
+      const pid = firstPid(rig);
+      const tPath = materializedConfigPath(rig);
 
-    await waitForPortFree(
-      DEFAULT_SOCKS_PORT,
-      5000,
-      'TC-05-20: 127.0.0.1:10808 free before start()',
-    );
-    const startResult = await rig.supervisor.start();
-    expect(
-      startResult.ok,
-      `TC-05-20 precondition: start failed — ${JSON.stringify(startResult)}`,
-    ).toBe(true);
-    const pid = firstPid(rig);
-    const tPath = materializedConfigPath(rig);
+      const result = await rig.supervisor.forceStop();
+      expect(
+        result,
+        'S5-3/TC-05-20: forceStop() settles {ok:true} after the kill completed',
+      ).toEqual({ ok: true });
+      expect(
+        isProcessGone(pid),
+        `S5-3/errors.md §6: child ${pid} must be reaped by forceStop — no zombie, no orphan`,
+      ).toBe(true);
+      expect(existsSync(tPath), 'S5-3/FR-23: T must be deleted on forceStop').toBe(false);
+      expect(rig.supervisor.isRunning(), 'isRunning() is false after forceStop').toBe(false);
 
-    const result = await rig.supervisor.forceStop();
-    expect(result, 'S5-3/TC-05-20: forceStop() settles {ok:true} after the kill completed').toEqual(
-      { ok: true },
-    );
-    expect(
-      isProcessGone(pid),
-      `S5-3/errors.md §6: child ${pid} must be reaped by forceStop — no zombie, no orphan`,
-    ).toBe(true);
-    expect(existsSync(tPath), 'S5-3/FR-23: T must be deleted on forceStop').toBe(false);
-    expect(rig.supervisor.isRunning(), 'isRunning() is false after forceStop').toBe(false);
-
-    // Idempotence half: no child → {ok:true}, nothing spawned, nothing killed.
-    const idle = await createRig();
-    expect(
-      await idle.supervisor.forceStop(),
-      'S5-3/TC-05-20: forceStop with no child is the idempotent {ok:true} no-op',
-    ).toEqual({ ok: true });
-    expect(idle.invocations().length, 'the no-child forceStop must never spawn anything').toBe(0);
-  }, 15_000);
-});
+      // Idempotence half: no child → {ok:true}, nothing spawned, nothing killed.
+      const idle = await createRig();
+      expect(
+        await idle.supervisor.forceStop(),
+        'S5-3/TC-05-20: forceStop with no child is the idempotent {ok:true} no-op',
+      ).toEqual({ ok: true });
+      expect(idle.invocations().length, 'the no-child forceStop must never spawn anything').toBe(0);
+    }, 15_000);
+  },
+);

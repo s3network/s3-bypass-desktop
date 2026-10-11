@@ -45,6 +45,8 @@ import { DEFAULT_SOCKS_PORT } from '../../src/shared/constants';
 import type { CoreState, StatusSnapshot } from '../../src/shared/status-machine';
 import {
   acquirePortLock,
+  portBusySkipMessage,
+  portHeldExternally,
   type CoreLogLine,
   type CoreSupervisor,
   distinctStates,
@@ -198,7 +200,24 @@ async function createRealRig(): Promise<RealRig> {
   return rig;
 }
 
-describe('real-binary integration — strategy D-4 (M2-10, TC-02-21..24)', () => {
+/**
+ * Skip these suites when 127.0.0.1:10808 is already taken.
+ *
+ * mergeLoopbackInbound writes DEFAULT_SOCKS_PORT into the materialized
+ * profile whatever the profile itself said, so a suite cannot choose a port
+ * of its own. With the application open — the normal state while working on
+ * it — every spawn-path case fails for a reason that has nothing to do with
+ * the code under test. Two dozen red tests read as a defect; one skip that
+ * names its cause does not.
+ */
+const PORT_TAKEN = await portHeldExternally(DEFAULT_SOCKS_PORT);
+if (PORT_TAKEN) {
+  // vitest's SuiteOptions carries no skip reason, so it is stated once
+  // here instead: the skips below are otherwise unexplained.
+  console.warn(portBusySkipMessage(DEFAULT_SOCKS_PORT));
+}
+
+describe.skipIf(PORT_TAKEN)('real-binary integration — strategy D-4 (M2-10, TC-02-21..24)', () => {
   it('coreReal.start.validProfileBootsPinnedBinaryRunningWithin1s', async () => {
     const rig = await createRealRig();
     const t0 = Date.now();
@@ -312,7 +331,7 @@ describe('real-binary integration — strategy D-4 (M2-10, TC-02-21..24)', () =>
   });
 });
 
-describe('real-core redaction pipeline (issue #24, DV-63) — TC-06-27', () => {
+describe.skipIf(PORT_TAKEN)('real-core redaction pipeline (issue #24, DV-63) — TC-06-27', () => {
   it('coreReal.redaction.pipeline.bootLinesKeepListenSignal', async () => {
     // TC-06-27 — issue #24: the REAL core's own boot output through the
     // collector's single entry point — the Logs-panel symptom (119/119

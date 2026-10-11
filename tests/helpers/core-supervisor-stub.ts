@@ -266,6 +266,35 @@ function bindProbeFree(port: number): Promise<boolean> {
 }
 
 /**
+ * True when something else is already listening on 127.0.0.1:`port`.
+ *
+ * Used to skip rather than fail. The core supervisor forces the SOCKS inbound
+ * onto DEFAULT_SOCKS_PORT after parsing the profile — mergeLoopbackInbound
+ * overwrites `port` whatever the profile says — so these suites cannot take a
+ * port of their own. With the released application running, that port is taken
+ * and the suite cannot proceed at all.
+ *
+ * Reporting that as two dozen red tests is the wrong shape: it reads as a
+ * product defect when nothing is broken. A skip naming the reason is what
+ * someone hitting this needs to see.
+ */
+export async function portHeldExternally(port: number): Promise<boolean> {
+  // probePort answers "can I connect". A refusal means nothing is listening;
+  // success means someone is holding it.
+  if (await probePort(port)) return true;
+  return !(await bindProbeFree(port));
+}
+
+/** Reason shown when a suite is skipped for the cause above. */
+export function portBusySkipMessage(port: number): string {
+  return (
+    `127.0.0.1:${port} is held by another process — most likely the S3 Bypass ` +
+    'Desktop app, which binds the same port by design (FR-15). Close it and ' +
+    're-run. Nothing is broken here; the suite simply cannot use a port of its own.'
+  );
+}
+
+/**
  * Waits until 127.0.0.1:`port` is actually free — the suite's port-leak
  * barrier (DV-29). Kills are async at the kernel level: `occupy-port.mjs`
  * dies on SIGKILL asynchronously, and `fake-core.sh`'s binder grandchild may
