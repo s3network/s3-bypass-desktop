@@ -45,6 +45,11 @@ const EN = {
   'logs.title': 'Logs',
   'logs.empty': 'No log lines yet.',
   'logs.copy': 'Copy logs',
+  // The copy button reports its outcome. A silent copy is indistinguishable
+  // from a broken one — which is exactly how a clipboard that rejects on an
+  // unfocused window went unnoticed here.
+  'logs.copied': 'Copied',
+  'logs.copyFailed': 'Copy failed',
   'logs.clear': 'Clear',
   // The product tagline (renderer copy, unpinned by design).
   'app.tagline': 'Import a config — press Start — the internet works.',

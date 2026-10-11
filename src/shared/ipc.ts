@@ -30,6 +30,7 @@ export const IPC_INVOKE_CHANNELS = [
   'status:get',
   'logs:get',
   'logs:clear',
+  'logs:copy',
   'proxy:get',
   'proxy:set',
 ] as const;
@@ -160,6 +161,7 @@ export interface S3BypassApi {
   getStatus(): Promise<StatusSnapshot>;
   getLogs(): Promise<LogsView>;
   clearLogs(): Promise<{ ok: true }>;
+  copyLogs(text: string): Promise<{ ok: boolean }>;
   getProxy(): Promise<ProxyState>;
   setProxy(request: ProxyToggleRequest): Promise<OperationResult>;
   onStatusChanged(listener: (snapshot: StatusSnapshot) => void): () => void;

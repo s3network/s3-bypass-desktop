@@ -55,6 +55,7 @@ const api: S3BypassApi = {
   getStatus: () => invoke<StatusSnapshot>('status:get'),
   getLogs: () => invoke<LogsView>('logs:get'),
   clearLogs: () => invoke<{ ok: true }>('logs:clear'),
+  copyLogs: (text: string) => invoke<{ ok: boolean }>('logs:copy', text),
   getProxy: () => invoke<ProxyState>('proxy:get'),
   setProxy: (request) => invoke<OperationResult>('proxy:set', request),
   onStatusChanged: (listener) => subscribe<StatusSnapshot>('status:changed', listener),

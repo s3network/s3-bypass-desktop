@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   type IpcMainInvokeEvent,
@@ -1094,6 +1095,25 @@ ipcMain.handle('logs:clear', (event: IpcMainInvokeEvent): { ok: true } => {
   logCollector.clear();
   return { ok: true };
 });
+
+// "Copy logs" (AC-06.5) goes through main rather than the renderer's
+// navigator.clipboard. In a renderer that call rejects with "Document is not
+// focused" whenever the window is not frontmost, and the promise was being
+// discarded with `void`, so the rejection vanished and the button looked
+// dead. Main's clipboard has no such precondition, and the renderer learns
+// whether the write happened instead of assuming it.
+ipcMain.handle(
+  'logs:copy',
+  (event: IpcMainInvokeEvent, text: string): { ok: boolean } => {
+    assertTrustedSender(event);
+    try {
+      clipboard.writeText(typeof text === 'string' ? text : '');
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
+  },
+);
 
 // M1-27b (D-01, issue #14): the REAL state report — `supported` answers the
 // pure platform rule (PR-01: platform + $XDG_CURRENT_DESKTOP PASSED IN),

@@ -200,6 +200,10 @@ const CONTRACT_TABLE: readonly ChannelSpec[] = [
     payloadOut: 'LogLine { ts, level, source, text /* redacted */ }',
   },
   { channel: 'logs:clear', direction: 'R→M', kind: 'invoke', payloadOut: '{ ok: true }' },
+  // "Copy logs" writes through main: navigator.clipboard rejects on an
+  // unfocused window and the promise was discarded, so a failure looked
+  // exactly like a button that does nothing.
+  { channel: 'logs:copy', direction: 'R→M', kind: 'invoke', payloadOut: '{ ok: boolean }' },
   {
     channel: 'proxy:get',
     direction: 'R→M',
@@ -572,6 +576,7 @@ describe('channel declarations in src/shared/ipc.ts (FR-62) — TC-IPC-03', () =
       | 'status:get'
       | 'logs:get'
       | 'logs:clear'
+      | 'logs:copy'
       | 'proxy:get'
       | 'proxy:set'
     >();
@@ -586,6 +591,7 @@ describe('channel declarations in src/shared/ipc.ts (FR-62) — TC-IPC-03', () =
       | 'status:get'
       | 'logs:get'
       | 'logs:clear'
+      | 'logs:copy'
       | 'proxy:get'
       | 'proxy:set'
       | 'status:changed'

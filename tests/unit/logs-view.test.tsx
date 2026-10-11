@@ -78,6 +78,10 @@ function installBridge(): void {
     getLogs: async () => ({ lines: VISIBLE_LINES }),
     onLogLine: () => () => undefined,
     clearLogs: async () => ({ ok: true }),
+    copyLogs: async (text: string) => {
+      writeText(text);
+      return { ok: true };
+    },
   };
 }
 
@@ -102,11 +106,6 @@ const normalize = (value: string): string => value.replace(/\s+/g, ' ').trim();
 describe('Logs view — copy delivers the visible text (AC-06.5, FR-49)', () => {
   it('logs.copy.deliversVisibleRedactedTextOnly', async () => {
     installBridge();
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText },
-      configurable: true,
-    });
-
     render(<App />);
     const button = await screen.findByRole('button', { name: /copy logs/i });
     fireEvent.click(button);

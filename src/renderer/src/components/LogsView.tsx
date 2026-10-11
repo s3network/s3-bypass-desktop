@@ -58,10 +58,28 @@ export default function LogsView() {
     }
   }, [lines]);
 
+  // AC-06.5: exactly the visible (already redacted) rows, one write.
+  //
+  // Routed through main, not navigator.clipboard: that call rejects with
+  // "Document is not focused" whenever the window is not frontmost, and the
+  // promise was discarded with `void`, so a failure looked exactly like a
+  // button that does nothing. The result is now shown either way — a silent
+  // copy is indistinguishable from a broken one, which is how this went
+  // unnoticed.
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+
   const copyLogs = (): void => {
-    // AC-06.5: exactly the visible (already redacted) rows, one write.
     const text = lines.map((line) => line.text).join('\n');
-    void navigator.clipboard?.writeText?.(text);
+    window.s3Bypass
+      ?.copyLogs?.(text)
+      .then((result) => {
+        setCopyState(result?.ok === true ? 'copied' : 'failed');
+        window.setTimeout(() => setCopyState('idle'), 2000);
+      })
+      .catch(() => {
+        setCopyState('failed');
+        window.setTimeout(() => setCopyState('idle'), 2000);
+      });
   };
 
   const clearLogs = (): void => {
@@ -80,7 +98,7 @@ export default function LogsView() {
       <h2>{t('logs.title')}</h2>
       <div className="log-actions">
         <button type="button" onClick={copyLogs}>
-          {t('logs.copy')}
+          {copyState === 'copied' ? t('logs.copied') : copyState === 'failed' ? t('logs.copyFailed') : t('logs.copy')}
         </button>
         <button type="button" onClick={clearLogs}>
           {t('logs.clear')}
