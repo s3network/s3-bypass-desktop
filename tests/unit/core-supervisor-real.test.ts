@@ -52,8 +52,6 @@ import {
   loadCoreSupervisor,
   PORT_LOCK_HOOK_TIMEOUT_MS,
   PORT_LOCK_TIMEOUT_MS,
-  portBusySkipMessage,
-  portHeldExternally,
   probePort,
   releasePortLock,
   waitFor,
@@ -61,6 +59,7 @@ import {
   waitForPortState,
 } from '../helpers/core-supervisor-stub';
 import { loadLogCollector } from '../helpers/log-collector-stub';
+import { socksPortTakenForRun } from '../helpers/port-gate';
 import { readConfigFixture } from '../helpers/profile-validator-stub';
 
 /** Repo root — this file lives at tests/unit/core-supervisor-real.test.ts. */
@@ -201,21 +200,20 @@ async function createRealRig(): Promise<RealRig> {
 }
 
 /**
- * Skip these suites when 127.0.0.1:10808 is already taken.
+ * Skip these suites when 127.0.0.1:10808 is already taken by something
+ * outside the suite — most often the running application.
  *
  * mergeLoopbackInbound writes DEFAULT_SOCKS_PORT into the materialized
  * profile whatever the profile itself said, so a suite cannot choose a port
- * of its own. With the application open — the normal state while working on
- * it — every spawn-path case fails for a reason that has nothing to do with
- * the code under test. Two dozen red tests read as a defect; one skip that
- * names its cause does not.
+ * of its own. With the app open — the normal state while working on it —
+ * every spawn-path case fails for a reason unrelated to the code under test.
+ * Two dozen red tests read as a defect; a skip that names its cause does not.
+ *
+ * The verdict itself is computed in tests/global-setup.ts, before any worker
+ * exists, and arrives here through the environment. Probing at this point
+ * instead would race the suite's own fixtures.
  */
-const PORT_TAKEN = await portHeldExternally(DEFAULT_SOCKS_PORT);
-if (PORT_TAKEN) {
-  // vitest's SuiteOptions carries no skip reason, so it is stated once
-  // here instead: the skips below are otherwise unexplained.
-  console.warn(portBusySkipMessage(DEFAULT_SOCKS_PORT));
-}
+const PORT_TAKEN = socksPortTakenForRun();
 
 describe.skipIf(PORT_TAKEN)('real-binary integration — strategy D-4 (M2-10, TC-02-21..24)', () => {
   it('coreReal.start.validProfileBootsPinnedBinaryRunningWithin1s', async () => {

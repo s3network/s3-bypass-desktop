@@ -4,6 +4,12 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.{ts,tsx}'],
     environment: 'node',
+    // Runs once in the main process, BEFORE any worker starts. It settles
+    // whether 127.0.0.1:10808 is held by something outside the suite, which
+    // the port-bound suites need to know before they can decide to skip.
+    // Computing that at file-load time instead races with the suites' own
+    // fixtures — see tests/helpers/port-gate.ts.
+    globalSetup: ['tests/global-setup.ts'],
     coverage: {
       // M1-27b batch D (D-11, issue #18 / TC-DOC-11): the strategy §6 gate
       // is now MECHANICAL — `npm run test:coverage` enforces "≥ 80 % lines

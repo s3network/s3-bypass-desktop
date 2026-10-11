@@ -19,6 +19,9 @@ export default defineConfig({
   test: {
     include: ['tests/e2e/**/*.spec.ts'],
     environment: 'node',
+    // Same 10808 gate as the unit layer — the e2e specs launch Electron and
+    // the supervisor, so they need the verdict recorded before workers start.
+    globalSetup: ['tests/global-setup.ts'],
     testTimeout: 120_000,
     hookTimeout: 120_000,
     fileParallelism: false,
