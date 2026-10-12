@@ -12,14 +12,21 @@ asset, exit 2 usage).
 
 | Field       | Value           |
 | ----------- | --------------- |
-| Release tag | `v0.1.0-fork.3` |
+| Release tag | `v0.1.0-fork.4` |
 
-Release published 2026-10-09 (our fork); tag commit
-committer date 2026-10-09T21:32:29+03:00:
+Release published 2026-10-10 (our fork); tag commit
+committer date 2026-10-10T22:50:56+03:00:
 
 | Field      | Value                                      |
 | ---------- | ------------------------------------------ |
-| Commit SHA | `95c6befbf168057a650e0fd7ae3968ab0da352a3` |
+| Commit SHA | `e30941321f5e4657671b6f5c41359faad285a4c2` |
+
+**Why this pin moved.** `v0.1.0` shipped on 2026-10-12 with `fork.3` still
+pinned here, so the released application carried a core that could not talk to
+a server on `fork.4`: the client wrote sessions the server never read, and the
+tunnel failed with `no ACK for session …` while the server log stayed empty.
+The version numbers must match on both ends of the bucket — a pin bump is a
+release, not a housekeeping edit.
 
 Source repository: `github.com/s3network/s3-bypass-protocol` — our hardened
 fork of `github.com/Fedarisha/Xray-core-fedarisha`, based on upstream tag
@@ -35,15 +42,15 @@ the BRIEF §5 / M2-06 attribution duties — the client itself stays GPL-3.0).
 One row per bundled platform (darwin-x64, darwin-arm64, linux-x64 per
 BRIEF §9; Linux package formats AppImage + `.deb` + `.rpm` per the owner
 decision of 2026-10-08). SHA-256 values were computed from the downloaded
-release assets on 2026-10-09 and cross-checked against the fork release
+release assets on 2026-10-13 and cross-checked against the fork release
 `.dgst` files shipped with the release (`SHA2-256=` lines) — all three
 matched.
 
 | Asset                      | SHA-256                                                          | Bytes    |
 | -------------------------- | ---------------------------------------------------------------- | -------- |
-| `Xray-linux-64.zip`        | 72c6005321446cc1ab4fe60f85e20576bfe8907ed36fdbc53e272868b94454e1 | 22941394 |
-| `Xray-macos-64.zip`        | 205fc117e078972b6a7e9ce368d4692979bac2db5fc91fbc51fb834820f40b19 | 22714214 |
-| `Xray-macos-arm64-v8a.zip` | f400b1a1d3dddca9f2208a36418f35702c5336c2bebec11549baa87377c584e3 | 21366671 |
+| `Xray-linux-64.zip`        | f80c656a6b99a034858154015772a07a6874a976509eb9d59fddcbce3e4353e5 | 22942923 |
+| `Xray-macos-64.zip`        | 41bf7539f5c5cd4ea81ea041afa9aa79f235b4978edcbef43f41105bbb332880 | 22747018 |
+| `Xray-macos-arm64-v8a.zip` | 85cfc7545d5865737d052319d3badec488a5c4a6a96b6fc8b28f718438d85f8d | 21400349 |
 
 ## Verification contract (M2 DoD #1)
 
