@@ -116,7 +116,7 @@ function commandFailedError(binary: string): AppError {
     cause: `The operating system command (${binary}) failed.`,
     nextStep:
       // M3-A (errors.md §0/§4, DV-64): the values themselves, never a code citation.
-      'The toggle was returned to Off; set the proxy manually (SOCKS host 127.0.0.1, port 10808), or retry.',
+      `The toggle was returned to Off; set the proxy manually (SOCKS host ${LOOPBACK_HOST}, port ${DEFAULT_SOCKS_PORT}), or retry.`,
   };
 }
 
