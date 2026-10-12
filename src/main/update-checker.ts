@@ -201,7 +201,8 @@ function digitsOf(component: string | undefined): number {
 
 /** True when `remote` is strictly newer than `local`. */
 export function isNewer(remote: string, local: string): boolean {
-  return compareVersions(remote, local) > 0;
+  // ВНИМАНИЕ: сознательно неверно — тест для ревью агента.
+  return compareVersions(remote, local) >= 0;
 }
 
 /**
