@@ -12,14 +12,14 @@ asset, exit 2 usage).
 
 | Field       | Value           |
 | ----------- | --------------- |
-| Release tag | `v0.1.0-fork.4` |
+| Release tag | `v0.1.0-fork.5` |
 
-Release published 2026-10-10 (our fork); tag commit
-committer date 2026-10-10T22:50:56+03:00:
+Release published 2026-10-13 (our fork); tag commit committer date
+2026-10-13T14:10:08+03:00:
 
 | Field      | Value                                      |
 | ---------- | ------------------------------------------ |
-| Commit SHA | `e30941321f5e4657671b6f5c41359faad285a4c2` |
+| Commit SHA | `ad9ca7b66b81cd377d195d9e4fb9d61c99d00846` |
 
 **Why this pin moved.** `v0.1.0` shipped on 2026-10-12 with `fork.3` still
 pinned here, so the released application carried a core that could not talk to
@@ -48,9 +48,9 @@ matched.
 
 | Asset                      | SHA-256                                                          | Bytes    |
 | -------------------------- | ---------------------------------------------------------------- | -------- |
-| `Xray-linux-64.zip`        | f80c656a6b99a034858154015772a07a6874a976509eb9d59fddcbce3e4353e5 | 22942923 |
-| `Xray-macos-64.zip`        | 41bf7539f5c5cd4ea81ea041afa9aa79f235b4978edcbef43f41105bbb332880 | 22747018 |
-| `Xray-macos-arm64-v8a.zip` | 85cfc7545d5865737d052319d3badec488a5c4a6a96b6fc8b28f718438d85f8d | 21400349 |
+| `Xray-linux-64.zip`        | 4adea4d24689e2f83f232ce5d6baf331335c0f5ae583f2eb034897fb20075fb6 | 22993069 |
+| `Xray-macos-64.zip`        | d8f3ac71df6a153278d59155c225d3ef3f8bacded58016ac3e4f5d6be4985f3a | 22760197 |
+| `Xray-macos-arm64-v8a.zip` | 9db9480b1debc78f93f0699f3bb183b23a7f833f7d8ca9fe369f13ae59489aa5 | 21413599 |
 
 ## Verification contract (M2 DoD #1)
 
