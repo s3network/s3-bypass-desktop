@@ -1,7 +1,7 @@
 {
   "name": "s3-bypass-desktop",
   "productName": "S3 Bypass Desktop",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Desktop client for the fedarisha S3 tunnel (macOS + Linux)",
   "main": "out/main/index.js",
   "private": true,
